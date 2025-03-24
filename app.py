@@ -82,12 +82,13 @@ if st.button("Run GEX Analysis") and ticker_input:
         st.subheader("GEX by Strike")
         fig1 = go.Figure()
 
-        # GEX bars
+        # GEX bars (double the size)
         fig1.add_trace(go.Bar(
             x=gex_df['gex'],
             y=gex_df['strike'],
             orientation='h',
-            marker_color='gray',
+            marker=dict(color='gray', line=dict(width=1)),
+            width=1.2,  # wider bars
             name='GEX'
         ))
 
@@ -111,13 +112,14 @@ if st.button("Run GEX Analysis") and ticker_input:
                       layer="below")
 
         fig1.update_layout(
-            height=500,
+            height=450,  # reduced height
+            width=700,   # squeezed width
             yaxis=dict(title="Strike", tickmode='linear', dtick=1, tickfont=dict(size=11)),
             xaxis_title="GEX Estimate",
             hovermode='y unified',
             margin=dict(l=10, r=10, t=20, b=10)
         )
-        st.plotly_chart(fig1, use_container_width=True)
+        st.plotly_chart(fig1)
 
     except Exception as e:
         st.error(f"Error: {e}")
