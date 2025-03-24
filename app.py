@@ -89,20 +89,27 @@ def get_line_chart(ticker, timeframe):
         today_str = datetime.today().strftime('%Y-%m-%d')
         df = df[df.index.strftime('%Y-%m-%d') == today_str]
 
-    if 'Close' not in df.columns:
-        if 'Adj Close' in df.columns:
-            df['Close'] = df['Adj Close']
-        else:
-            df['Close'] = np.nan
+    # Pick the best available price column
+    price_col = None
+    for col in ['Close', 'Adj Close', 'close', 'adjclose', 'Price']:
+        if col in df.columns:
+            price_col = col
+            break
 
-    df = df.dropna(subset=['Close'])
+    if price_col is None:
+        fig = go.Figure()
+        fig.update_layout(title="Price data unavailable", height=400)
+        return fig
+
+    df['Price'] = df[price_col]
+    df = df.dropna(subset=['Price'])
     df.reset_index(inplace=True)
     df['Datetime'] = pd.to_datetime(df['Datetime'])
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=df['Datetime'],
-        y=df['Close'].astype(float),
+        y=df['Price'].astype(float),
         mode='lines',
         name='Price',
         line=dict(color='royalblue')
@@ -111,7 +118,7 @@ def get_line_chart(ticker, timeframe):
     fig.update_layout(
         title=f"{ticker.upper()} Price Chart ({timeframe})",
         xaxis_title="Time",
-        yaxis_title="Close Price",
+        yaxis_title="Price",
         hovermode="x unified",
         height=500,
         margin=dict(l=10, r=10, t=30, b=10)
