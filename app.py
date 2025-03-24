@@ -63,7 +63,7 @@ def calculate_gex(ticker_symbol):
     return filtered_gex, spot, expiry
 
 # ------------------------
-# Line Chart (Fallback)
+# Line Chart (Reliable)
 # ------------------------
 def get_line_chart(ticker, timeframe):
     interval = "5m"
@@ -85,13 +85,14 @@ def get_line_chart(ticker, timeframe):
         today_str = datetime.today().strftime('%Y-%m-%d')
         df = df[df.index.strftime('%Y-%m-%d') == today_str]
 
+    df = df.dropna(subset=['Close'])
     df.reset_index(inplace=True)
     df['Datetime'] = pd.to_datetime(df['Datetime'])
 
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=df['Datetime'],
-        y=df['Close'],
+        y=df['Close'].astype(float),
         mode='lines',
         name='Price',
         line=dict(color='royalblue')
