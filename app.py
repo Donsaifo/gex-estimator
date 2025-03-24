@@ -61,9 +61,9 @@ def calculate_gex(ticker_symbol):
     total_gex = pd.concat([call_gex, put_gex]).groupby('strike').sum().reset_index()
     total_gex = total_gex.sort_values('strike')
 
-    # ±50 strikes around spot
-    closest_strikes = total_gex['strike'].sub(spot).abs().sort_values().index
-    filtered_gex = total_gex.loc[closest_strikes].head(101).sort_values('strike')
+    # ±50 strikes around spot only
+    total_gex['distance'] = abs(total_gex['strike'] - spot)
+    filtered_gex = total_gex.sort_values('distance').head(101).sort_values('strike')
 
     return filtered_gex, spot, expiry
 
@@ -111,11 +111,11 @@ if st.button("Run GEX Analysis") and ticker_input:
                       layer="below")
 
         fig1.update_layout(
-            height=650,
-            yaxis=dict(title="Strike", tickmode='linear', dtick=1, tickfont=dict(size=12)),
+            height=500,
+            yaxis=dict(title="Strike", tickmode='linear', dtick=1, tickfont=dict(size=11)),
             xaxis_title="GEX Estimate",
             hovermode='y unified',
-            margin=dict(l=10, r=10, t=30, b=10)
+            margin=dict(l=10, r=10, t=20, b=10)
         )
         st.plotly_chart(fig1, use_container_width=True)
 
