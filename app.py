@@ -17,13 +17,17 @@ def bs_gamma(S, K, T, r, sigma):
         return 0
 
 # ------------------------
-# Get Next Friday
+# Get Closest Friday Expiry
 # ------------------------
 def get_next_friday():
     today = datetime.today()
-    days_ahead = 4 - today.weekday()
-    if days_ahead <= 0:
-        days_ahead += 7
+    weekday = today.weekday()
+    if weekday < 4:  # Monday to Thursday
+        days_ahead = 4 - weekday
+    elif weekday == 4:  # Friday
+        days_ahead = 0
+    else:  # Saturday or Sunday
+        days_ahead = (7 - weekday) + 4
     return (today + timedelta(days=days_ahead)).strftime('%Y-%m-%d')
 
 # ------------------------
@@ -76,7 +80,7 @@ def get_line_chart(ticker, timeframe):
 
     df = yf.download(ticker, period=period, interval=interval, progress=False)
 
-    if df.empty or 'Close' not in df.columns:
+    if df.empty:
         fig = go.Figure()
         fig.update_layout(title="No intraday data available", height=400)
         return fig
@@ -84,6 +88,9 @@ def get_line_chart(ticker, timeframe):
     if timeframe == "Current Weekday Only (5-min)":
         today_str = datetime.today().strftime('%Y-%m-%d')
         df = df[df.index.strftime('%Y-%m-%d') == today_str]
+
+    if 'Close' not in df.columns:
+        df['Close'] = df['Adj Close'] if 'Adj Close' in df.columns else np.nan
 
     df = df.dropna(subset=['Close'])
     df.reset_index(inplace=True)
