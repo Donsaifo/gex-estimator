@@ -82,13 +82,16 @@ if st.button("Run GEX Analysis") and ticker_input:
         st.subheader("GEX by Strike")
         fig1 = go.Figure()
 
-        # GEX bars (double the size)
+        # Assign colors based on GEX sign
+        colors = ['green' if val > 0 else 'red' for val in gex_df['gex']]
+
+        # GEX bars
         fig1.add_trace(go.Bar(
             x=gex_df['gex'],
             y=gex_df['strike'],
             orientation='h',
-            marker=dict(color='gray', line=dict(width=1)),
-            width=1.2,  # wider bars
+            marker=dict(color=colors, line=dict(width=1)),
+            width=1.2,
             name='GEX'
         ))
 
@@ -113,8 +116,8 @@ if st.button("Run GEX Analysis") and ticker_input:
 
         fig1.update_layout(
             height=450,
-            width=700,
-            yaxis=dict(title="Strike", tickmode='linear', dtick=5, tickfont=dict(size=11)),
+            width=350,
+            yaxis=dict(title="Strike", tickmode='linear', dtick=15, tickfont=dict(size=11)),
             xaxis_title="GEX Estimate",
             hovermode='y unified',
             margin=dict(l=10, r=10, t=20, b=10)
