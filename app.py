@@ -95,7 +95,7 @@ def get_intraday_chart(ticker_symbol):
 # Streamlit Layout
 # ------------------------
 st.set_page_config(page_title="GEX Estimator", layout="wide")
-st.title("📊 GEX Estimator (SpotGamma-style layout)")
+st.title("📊 My Private Gamma Dashboard")
 
 ticker_input = st.text_input("Enter stock ticker:", value="SPY")
 
