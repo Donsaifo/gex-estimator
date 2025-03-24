@@ -4,14 +4,14 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 from scipy.stats import norm
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 
 # ------------------------
-# Gamma calculation (Black-Scholes)
+# Gamma Calculation (Black-Scholes)
 # ------------------------
 def bs_gamma(S, K, T, r, sigma):
     try:
-        d1 = (np.log(S / K) + (r + 0.5 * sigma**2) * T) / (sigma * np.sqrt(T))
+        d1 = (np.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
         return norm.pdf(d1) / (S * sigma * np.sqrt(T))
     except:
         return 0
@@ -27,19 +27,17 @@ def get_next_friday():
     return (today + timedelta(days=days_ahead)).strftime('%Y-%m-%d')
 
 # ------------------------
-# Calculate GEX
+# GEX Calculation
 # ------------------------
 def calculate_gex(ticker_symbol):
     r = 0.05
     multiplier = 100
-
     ticker = yf.Ticker(ticker_symbol)
     spot = ticker.history(period='1d')['Close'].iloc[-1]
     expiries = ticker.options
     expiry = get_next_friday()
     if expiry not in expiries:
         expiry = expiries[0]
-
     chain = ticker.option_chain(expiry)
     calls = chain.calls.copy()
     puts = chain.puts.copy()
@@ -59,49 +57,80 @@ def calculate_gex(ticker_symbol):
     total_gex = pd.concat([call_gex, put_gex]).groupby('strike').sum().reset_index()
     total_gex = total_gex.sort_values('strike')
 
-    # Focus on ±30 strikes around spot
+    # Focus on ±30 strikes
     closest_strikes = total_gex['strike'].sub(spot).abs().sort_values().index
     filtered_gex = total_gex.loc[closest_strikes].head(61).sort_values('strike')
-
     return filtered_gex, spot, expiry
 
 # ------------------------
-# Streamlit UI
+# Price Chart (5-min)
+# ------------------------
+def get_intraday_chart(ticker_symbol):
+    df = yf.download(ticker_symbol, period="1d", interval="5m", progress=False)
+    fig = go.Figure()
+    fig.add_trace(go.Candlestick(
+        x=df.index,
+        open=df['Open'],
+        high=df['High'],
+        low=df['Low'],
+        close=df['Close'],
+        name='5-min Candle'
+    ))
+    fig.update_layout(title=f'{ticker_symbol.upper()} 5-Min Intraday Chart',
+                      xaxis_title='Time',
+                      yaxis_title='Price',
+                      margin=dict(l=10, r=10, t=30, b=10),
+                      height=500)
+    return fig
+
+# ------------------------
+# Streamlit Layout
 # ------------------------
 st.set_page_config(page_title="GEX Estimator", layout="wide")
+st.title("📊 GEX Estimator (SpotGamma-style layout)")
 
-st.title("📊 GEX Estimator")
-ticker_input = st.text_input("Enter stock ticker (e.g. SPY, TSLA, NVDA):", value="SPY")
+ticker_input = st.text_input("Enter stock ticker:", value="SPY")
 
 if st.button("Run GEX Analysis") and ticker_input:
-    with st.spinner("Calculating GEX..."):
-        try:
-            gex_df, spot, expiry = calculate_gex(ticker_input.upper())
+    try:
+        gex_df, spot, expiry = calculate_gex(ticker_input.upper())
+        col1, col2 = st.columns([1, 2])  # 1/3 GEX - 2/3 chart
 
-            fig, ax = plt.subplots(figsize=(12, 6))
-            ax.bar(gex_df['strike'], gex_df['gex'], width=2.0, color='gray')
-            ax.axhline(0, linestyle='--', color='black')
+        with col1:
+            st.subheader("GEX by Strike")
+            fig1 = go.Figure()
+            fig1.add_trace(go.Bar(
+                x=gex_df['gex'],
+                y=gex_df['strike'],
+                orientation='h',
+                marker_color='gray',
+                name='GEX'
+            ))
 
-            # GEX flip line
+            # Flip zone (red line)
             try:
                 flip_zone = gex_df[gex_df['gex'] >= 0].iloc[0]['strike']
-                ax.axvline(flip_zone, linestyle='--', color='red', label=f"GEX Flip ≈ {flip_zone}")
+                fig1.add_vline(x=0, line_dash="dash", line_color="black")
+                fig1.add_hline(y=flip_zone, line_dash="dash", line_color="red",
+                               annotation_text=f"GEX Flip ≈ {flip_zone}", annotation_position="top left")
             except:
                 pass
 
-            # Spot price line
-            ax.axvline(spot, linestyle='--', color='blue', label=f"Spot Price: {spot:.2f}")
-            ax.set_xticks(gex_df['strike'][::2])
-            ax.set_xticklabels(gex_df['strike'][::2].astype(int), rotation=45)
-            ax.set_xlim(gex_df['strike'].min() - 5, gex_df['strike'].max() + 5)
-            ax.set_title(f"{ticker_input.upper()} GEX by Strike (Expiry: {expiry})")
-            ax.set_xlabel("Strike Price")
-            ax.set_ylabel("Estimated GEX")
-            ax.grid(axis='y')
-            ax.legend()
+            # Spot price (blue line)
+            fig1.add_hline(y=spot, line_dash="dash", line_color="blue",
+                           annotation_text=f"Spot: {spot:.2f}", annotation_position="bottom left")
 
-            st.pyplot(fig)
-            st.dataframe(gex_df)
+            fig1.update_layout(
+                height=500,
+                yaxis_title="Strike",
+                xaxis_title="GEX Estimate",
+                margin=dict(l=10, r=10, t=30, b=10)
+            )
+            st.plotly_chart(fig1, use_container_width=True)
 
-        except Exception as e:
-            st.error(f"Error: {e}")
+        with col2:
+            st.subheader("5-Min Price Chart")
+            st.plotly_chart(get_intraday_chart(ticker_input.upper()), use_container_width=True)
+
+    except Exception as e:
+        st.error(f"Error: {e}")
