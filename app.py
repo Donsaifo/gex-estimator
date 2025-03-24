@@ -67,117 +67,45 @@ def calculate_gex(ticker_symbol):
     return filtered_gex, spot, expiry
 
 # ------------------------
-# Line Chart (Reliable)
-# ------------------------
-def get_line_chart(ticker, timeframe):
-    interval = "5m"
-    if timeframe == "Today (5-min)":
-        period = "1d"
-    elif timeframe == "5-Day (5-min from Monday)":
-        period = "5d"
-    else:
-        period = "5d"
-
-    df = yf.download(ticker, period=period, interval=interval, progress=False)
-
-    if df.empty:
-        fig = go.Figure()
-        fig.update_layout(title="No intraday data available", height=400)
-        return fig
-
-    if timeframe == "Current Weekday Only (5-min)":
-        today_str = datetime.today().strftime('%Y-%m-%d')
-        df = df[df.index.strftime('%Y-%m-%d') == today_str]
-
-    # Pick the best available price column
-    price_col = None
-    for col in ['Close', 'Adj Close', 'close', 'adjclose', 'Price']:
-        if col in df.columns:
-            price_col = col
-            break
-
-    if price_col is None:
-        fig = go.Figure()
-        fig.update_layout(title="Price data unavailable", height=400)
-        return fig
-
-    df['Price'] = df[price_col]
-    df = df.dropna(subset=['Price'])
-    df.reset_index(inplace=True)
-    df['Datetime'] = pd.to_datetime(df['Datetime'])
-
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=df['Datetime'],
-        y=df['Price'].astype(float),
-        mode='lines',
-        name='Price',
-        line=dict(color='royalblue')
-    ))
-
-    fig.update_layout(
-        title=f"{ticker.upper()} Price Chart ({timeframe})",
-        xaxis_title="Time",
-        yaxis_title="Price",
-        hovermode="x unified",
-        height=500,
-        margin=dict(l=10, r=10, t=30, b=10)
-    )
-
-    fig.update_xaxes(range=[df['Datetime'].min(), df['Datetime'].max()])
-    return fig
-
-# ------------------------
 # Streamlit UI
 # ------------------------
 st.set_page_config(page_title="GEX Estimator", layout="wide")
-st.title("📊 GEX Estimator (Line Chart Version)")
+st.title("📊 GEX Estimator")
 
 ticker_input = st.text_input("Enter stock ticker:", value="SPY")
-timeframe = st.selectbox("Select timeframe for price chart:", [
-    "Today (5-min)",
-    "5-Day (5-min from Monday)",
-    "Current Weekday Only (5-min)"
-])
 
 if st.button("Run GEX Analysis") and ticker_input:
     try:
         gex_df, spot, expiry = calculate_gex(ticker_input.upper())
-        col1, col2 = st.columns([1, 2])
 
-        with col1:
-            st.subheader("GEX by Strike")
-            fig1 = go.Figure()
-            fig1.add_trace(go.Bar(
-                x=gex_df['gex'],
-                y=gex_df['strike'],
-                orientation='h',
-                marker_color='gray',
-                name='GEX'
-            ))
+        st.subheader("GEX by Strike")
+        fig1 = go.Figure()
+        fig1.add_trace(go.Bar(
+            x=gex_df['gex'],
+            y=gex_df['strike'],
+            orientation='h',
+            marker_color='gray',
+            name='GEX'
+        ))
 
-            try:
-                flip_zone = gex_df[gex_df['gex'] >= 0].iloc[0]['strike']
-                fig1.add_hline(y=flip_zone, line_dash="dash", line_color="red",
-                               annotation_text=f"GEX Flip ≈ {flip_zone}", annotation_position="top left")
-            except:
-                pass
+        try:
+            flip_zone = gex_df[gex_df['gex'] >= 0].iloc[0]['strike']
+            fig1.add_hline(y=flip_zone, line_dash="dash", line_color="red",
+                           annotation_text=f"GEX Flip ≈ {flip_zone}", annotation_position="top left")
+        except:
+            pass
 
-            fig1.add_hline(y=spot, line_dash="dash", line_color="blue",
-                           annotation_text=f"Spot: {spot:.2f}", annotation_position="bottom left")
+        fig1.add_hline(y=spot, line_dash="dash", line_color="blue",
+                       annotation_text=f"Spot: {spot:.2f}", annotation_position="bottom left")
 
-            fig1.update_layout(
-                height=500,
-                yaxis_title="Strike",
-                xaxis_title="GEX Estimate",
-                hovermode='x unified',
-                margin=dict(l=10, r=10, t=30, b=10)
-            )
-            st.plotly_chart(fig1, use_container_width=True)
-
-        with col2:
-            st.subheader("Price Chart")
-            st.plotly_chart(get_line_chart(ticker_input.upper(), timeframe), use_container_width=True)
+        fig1.update_layout(
+            height=600,
+            yaxis_title="Strike",
+            xaxis_title="GEX Estimate",
+            hovermode='y unified',
+            margin=dict(l=10, r=10, t=30, b=10)
+        )
+        st.plotly_chart(fig1, use_container_width=True)
 
     except Exception as e:
         st.error(f"Error: {e}")
