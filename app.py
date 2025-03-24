@@ -7,11 +7,11 @@ from scipy.stats import norm
 import plotly.graph_objects as go
 
 # ------------------------
-# Black-Scholes Gamma Calculation
+# Gamma Calculation (Black-Scholes)
 # ------------------------
 def bs_gamma(S, K, T, r, sigma):
     try:
-        d1 = (np.log(S / K) + (r + 0.5 * sigma**2) * T) / (sigma * np.sqrt(T))
+        d1 = (np.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
         return norm.pdf(d1) / (S * sigma * np.sqrt(T))
     except:
         return 0
@@ -57,16 +57,24 @@ def calculate_gex(ticker_symbol):
     total_gex = pd.concat([call_gex, put_gex]).groupby('strike').sum().reset_index()
     total_gex = total_gex.sort_values('strike')
 
+    # ±50 strikes around spot
     closest_strikes = total_gex['strike'].sub(spot).abs().sort_values().index
-    filtered_gex = total_gex.loc[closest_strikes].head(61).sort_values('strike')
-
+    filtered_gex = total_gex.loc[closest_strikes].head(101).sort_values('strike')
     return filtered_gex, spot, expiry
 
 # ------------------------
-# Intraday 5-Minute Price Chart
+# Intraday Chart (Timeframe Selectable)
 # ------------------------
-def get_intraday_chart(ticker_symbol):
-    df = yf.download(ticker_symbol, period="1d", interval="5m", progress=False)
+def get_intraday_chart(ticker, timeframe):
+    if timeframe == "Today (5-min)":
+        df = yf.download(ticker, period="1d", interval="5m", progress=False)
+    elif timeframe == "5-Day (5-min from Monday)":
+        df = yf.download(ticker, period="5d", interval="5m", progress=False)
+    else:  # "Current Weekday Only (5-min)"
+        df = yf.download(ticker, period="5d", interval="5m", progress=False)
+        today = datetime.today().strftime('%Y-%m-%d')
+        df = df[df.index.strftime('%Y-%m-%d') == today]
+
     df = df.reset_index()
     df['Datetime'] = pd.to_datetime(df['Datetime'])
 
@@ -80,7 +88,7 @@ def get_intraday_chart(ticker_symbol):
     )])
 
     fig.update_layout(
-        title=f"{ticker_symbol.upper()} 5-Min Intraday Chart",
+        title=f"{ticker.upper()} {timeframe}",
         xaxis_title='Time',
         yaxis_title='Price',
         xaxis_rangeslider_visible=False,
@@ -89,15 +97,20 @@ def get_intraday_chart(ticker_symbol):
         margin=dict(l=10, r=10, t=30, b=10)
     )
 
+    # Auto-scroll to latest price
+    if not df.empty:
+        fig.update_xaxes(range=[df['Datetime'].min(), df['Datetime'].max()])
+
     return fig
 
 # ------------------------
 # Streamlit Layout
 # ------------------------
 st.set_page_config(page_title="GEX Estimator", layout="wide")
-st.title("📊 My Private Gamma Dashboard")
+st.title("📊 GEX Estimator (SpotGamma-style layout)")
 
 ticker_input = st.text_input("Enter stock ticker:", value="SPY")
+timeframe = st.selectbox("Select timeframe for price chart:", ["Today (5-min)", "5-Day (5-min from Monday)", "Current Weekday Only (5-min)"])
 
 if st.button("Run GEX Analysis") and ticker_input:
     try:
@@ -115,7 +128,7 @@ if st.button("Run GEX Analysis") and ticker_input:
                 name='GEX'
             ))
 
-            # GEX Flip Zone
+            # Flip line
             try:
                 flip_zone = gex_df[gex_df['gex'] >= 0].iloc[0]['strike']
                 fig1.add_hline(y=flip_zone, line_dash="dash", line_color="red",
@@ -123,7 +136,7 @@ if st.button("Run GEX Analysis") and ticker_input:
             except:
                 pass
 
-            # Spot Price Line
+            # Spot line
             fig1.add_hline(y=spot, line_dash="dash", line_color="blue",
                            annotation_text=f"Spot: {spot:.2f}", annotation_position="bottom left")
 
@@ -131,14 +144,14 @@ if st.button("Run GEX Analysis") and ticker_input:
                 height=500,
                 yaxis_title="Strike",
                 xaxis_title="GEX Estimate",
-                margin=dict(l=10, r=10, t=30, b=10),
-                hovermode='x unified'
+                hovermode='x unified',
+                margin=dict(l=10, r=10, t=30, b=10)
             )
             st.plotly_chart(fig1, use_container_width=True)
 
         with col2:
-            st.subheader("5-Min Price Chart")
-            st.plotly_chart(get_intraday_chart(ticker_input.upper()), use_container_width=True)
+            st.subheader("Price Chart")
+            st.plotly_chart(get_intraday_chart(ticker_input.upper(), timeframe), use_container_width=True)
 
     except Exception as e:
         st.error(f"Error: {e}")
