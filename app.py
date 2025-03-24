@@ -64,10 +64,7 @@ def calculate_gex(ticker_symbol):
     # ±50 strikes around spot
     closest_strikes = total_gex['strike'].sub(spot).abs().sort_values().index
     filtered_gex = total_gex.loc[closest_strikes].head(101).sort_values('strike')
-    
-    # Add cumulative GEX
-    filtered_gex['cumulative_gex'] = filtered_gex['gex'].cumsum()
-    
+
     return filtered_gex, spot, expiry
 
 # ------------------------
@@ -94,16 +91,6 @@ if st.button("Run GEX Analysis") and ticker_input:
             name='GEX'
         ))
 
-        # Cumulative GEX overlay
-        fig1.add_trace(go.Scatter(
-            x=gex_df['cumulative_gex'],
-            y=gex_df['strike'],
-            mode='lines+markers',
-            line=dict(color='orange', width=2),
-            name='Cumulative GEX',
-            yaxis='y1'
-        ))
-
         try:
             flip_zone = gex_df[gex_df['gex'] >= 0].iloc[0]['strike']
             fig1.add_hline(y=flip_zone, line_dash="dash", line_color="red",
@@ -125,7 +112,7 @@ if st.button("Run GEX Analysis") and ticker_input:
 
         fig1.update_layout(
             height=650,
-            yaxis=dict(title="Strike", tickmode='linear', dtick=2),
+            yaxis=dict(title="Strike", tickmode='linear', dtick=1, tickfont=dict(size=12)),
             xaxis_title="GEX Estimate",
             hovermode='y unified',
             margin=dict(l=10, r=10, t=30, b=10)
