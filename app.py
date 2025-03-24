@@ -7,17 +7,17 @@ from scipy.stats import norm
 import plotly.graph_objects as go
 
 # ------------------------
-# Gamma Calculation (Black-Scholes)
+# Black-Scholes Gamma Calculation
 # ------------------------
 def bs_gamma(S, K, T, r, sigma):
     try:
-        d1 = (np.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
+        d1 = (np.log(S / K) + (r + 0.5 * sigma**2) * T) / (sigma * np.sqrt(T))
         return norm.pdf(d1) / (S * sigma * np.sqrt(T))
     except:
         return 0
 
 # ------------------------
-# Get next Friday expiry
+# Get Next Friday Expiry
 # ------------------------
 def get_next_friday():
     today = datetime.today()
@@ -27,7 +27,7 @@ def get_next_friday():
     return (today + timedelta(days=days_ahead)).strftime('%Y-%m-%d')
 
 # ------------------------
-# GEX Calculation
+# Calculate GEX
 # ------------------------
 def calculate_gex(ticker_symbol):
     r = 0.05
@@ -57,18 +57,16 @@ def calculate_gex(ticker_symbol):
     total_gex = pd.concat([call_gex, put_gex]).groupby('strike').sum().reset_index()
     total_gex = total_gex.sort_values('strike')
 
-    # Focus on ±30 strikes
     closest_strikes = total_gex['strike'].sub(spot).abs().sort_values().index
     filtered_gex = total_gex.loc[closest_strikes].head(61).sort_values('strike')
+
     return filtered_gex, spot, expiry
 
 # ------------------------
-# Price Chart (5-min)
+# Intraday 5-Minute Price Chart
 # ------------------------
 def get_intraday_chart(ticker_symbol):
     df = yf.download(ticker_symbol, period="1d", interval="5m", progress=False)
-    
-    # Ensure timestamps are formatted
     df = df.reset_index()
     df['Datetime'] = pd.to_datetime(df['Datetime'])
 
@@ -86,11 +84,13 @@ def get_intraday_chart(ticker_symbol):
         xaxis_title='Time',
         yaxis_title='Price',
         xaxis_rangeslider_visible=False,
+        hovermode='x unified',
         height=500,
         margin=dict(l=10, r=10, t=30, b=10)
     )
 
     return fig
+
 # ------------------------
 # Streamlit Layout
 # ------------------------
@@ -102,7 +102,7 @@ ticker_input = st.text_input("Enter stock ticker:", value="SPY")
 if st.button("Run GEX Analysis") and ticker_input:
     try:
         gex_df, spot, expiry = calculate_gex(ticker_input.upper())
-        col1, col2 = st.columns([1, 2])  # 1/3 GEX - 2/3 chart
+        col1, col2 = st.columns([1, 2])
 
         with col1:
             st.subheader("GEX by Strike")
@@ -115,16 +115,15 @@ if st.button("Run GEX Analysis") and ticker_input:
                 name='GEX'
             ))
 
-            # Flip zone (red line)
+            # GEX Flip Zone
             try:
                 flip_zone = gex_df[gex_df['gex'] >= 0].iloc[0]['strike']
-                fig1.add_vline(x=0, line_dash="dash", line_color="black")
                 fig1.add_hline(y=flip_zone, line_dash="dash", line_color="red",
                                annotation_text=f"GEX Flip ≈ {flip_zone}", annotation_position="top left")
             except:
                 pass
 
-            # Spot price (blue line)
+            # Spot Price Line
             fig1.add_hline(y=spot, line_dash="dash", line_color="blue",
                            annotation_text=f"Spot: {spot:.2f}", annotation_position="bottom left")
 
@@ -132,7 +131,8 @@ if st.button("Run GEX Analysis") and ticker_input:
                 height=500,
                 yaxis_title="Strike",
                 xaxis_title="GEX Estimate",
-                margin=dict(l=10, r=10, t=30, b=10)
+                margin=dict(l=10, r=10, t=30, b=10),
+                hovermode='x unified'
             )
             st.plotly_chart(fig1, use_container_width=True)
 
