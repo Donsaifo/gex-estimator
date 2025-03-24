@@ -90,7 +90,10 @@ def get_line_chart(ticker, timeframe):
         df = df[df.index.strftime('%Y-%m-%d') == today_str]
 
     if 'Close' not in df.columns:
-        df['Close'] = df['Adj Close'] if 'Adj Close' in df.columns else np.nan
+        if 'Adj Close' in df.columns:
+            df['Close'] = df['Adj Close']
+        else:
+            df['Close'] = np.nan
 
     df = df.dropna(subset=['Close'])
     df.reset_index(inplace=True)
