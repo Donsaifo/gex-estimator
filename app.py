@@ -61,7 +61,6 @@ def calculate_gex(ticker_symbol):
     total_gex = pd.concat([call_gex, put_gex]).groupby('strike').sum().reset_index()
     total_gex = total_gex.sort_values('strike')
 
-    # ±50 strikes around spot only
     total_gex['distance'] = abs(total_gex['strike'] - spot)
     filtered_gex = total_gex.sort_values('distance').head(101).sort_values('strike')
 
@@ -82,15 +81,11 @@ if st.button("Run GEX Analysis") and ticker_input:
         st.subheader("GEX by Strike")
         fig1 = go.Figure()
 
-        # Assign colors based on GEX sign
         colors = ['green' if val > 0 else 'red' for val in gex_df['gex']]
-
-        # Apply SpotGamma-style spacing (manual spacing increment)
         spacing_factor = 10
         gex_df['strike_spaced'] = np.arange(len(gex_df)) * spacing_factor
         strike_labels = gex_df['strike'].astype(str)
 
-        # GEX bars
         fig1.add_trace(go.Bar(
             x=gex_df['gex'],
             y=gex_df['strike_spaced'],
@@ -102,22 +97,10 @@ if st.button("Run GEX Analysis") and ticker_input:
             hovertemplate='Strike: %{text}<br>GEX: %{x:,.0f}'
         ))
 
-        try:
-            positive_gex = gex_df[gex_df['gex'] >= 0]
-            if not positive_gex.empty:
-                flip_idx = positive_gex.index[0]
-                flip_pos = gex_df.loc[flip_idx, 'strike_spaced']
-                flip_strike = gex_df.loc[flip_idx, 'strike']
-                fig1.add_hline(y=flip_pos, line_dash="dash", line_color="red",
-                               annotation_text=f"GEX Flip ≈ {flip_strike}", annotation_position="top left")
-        except:
-            pass
-
         spot_pos = gex_df.iloc[(gex_df['strike'] - spot).abs().idxmin()]['strike_spaced']
         fig1.add_hline(y=spot_pos, line_dash="dash", line_color="blue",
                        annotation_text=f"Spot: {spot:.2f}", annotation_position="bottom left")
 
-        # Highlight max GEX zone
         max_gex_row = gex_df.iloc[gex_df['gex'].abs().idxmax()]
         fig1.add_shape(type="rect",
                       x0=0, x1=max_gex_row['gex'],
