@@ -85,31 +85,34 @@ if st.button("Run GEX Analysis") and ticker_input:
         # Assign colors based on GEX sign
         colors = ['green' if val > 0 else 'red' for val in gex_df['gex']]
 
+        # Add space between bars by duplicating strike spacing
+        gex_df['strike_spaced'] = gex_df['strike'] * 2
+
         # GEX bars
         fig1.add_trace(go.Bar(
             x=gex_df['gex'],
-            y=gex_df['strike'],
+            y=gex_df['strike_spaced'],
             orientation='h',
             marker=dict(color=colors, line=dict(width=1)),
-            width=1.2,
+            width=1.0,
             name='GEX'
         ))
 
         try:
-            flip_zone = gex_df[gex_df['gex'] >= 0].iloc[0]['strike']
+            flip_zone = gex_df[gex_df['gex'] >= 0].iloc[0]['strike_spaced']
             fig1.add_hline(y=flip_zone, line_dash="dash", line_color="red",
-                           annotation_text=f"GEX Flip ≈ {flip_zone}", annotation_position="top left")
+                           annotation_text=f"GEX Flip ≈ {flip_zone / 2}", annotation_position="top left")
         except:
             pass
 
-        fig1.add_hline(y=spot, line_dash="dash", line_color="blue",
+        fig1.add_hline(y=spot * 2, line_dash="dash", line_color="blue",
                        annotation_text=f"Spot: {spot:.2f}", annotation_position="bottom left")
 
         # Highlight max GEX zone
         max_gex_row = gex_df.iloc[gex_df['gex'].abs().idxmax()]
         fig1.add_shape(type="rect",
                       x0=0, x1=max_gex_row['gex'],
-                      y0=max_gex_row['strike'] - 0.5, y1=max_gex_row['strike'] + 0.5,
+                      y0=max_gex_row['strike_spaced'] - 1, y1=max_gex_row['strike_spaced'] + 1,
                       line=dict(color="green", width=0),
                       fillcolor="green", opacity=0.2,
                       layer="below")
@@ -117,7 +120,7 @@ if st.button("Run GEX Analysis") and ticker_input:
         fig1.update_layout(
             height=450,
             width=350,
-            yaxis=dict(title="Strike", tickmode='linear', dtick=15, tickfont=dict(size=11)),
+            yaxis=dict(title="Strike", tickmode='linear', dtick=30, tickfont=dict(size=11)),
             xaxis_title="GEX Estimate",
             hovermode='y unified',
             margin=dict(l=10, r=10, t=20, b=10)
