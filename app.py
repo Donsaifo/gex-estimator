@@ -112,9 +112,9 @@ if st.button("Run GEX Analysis") and ticker_input:
                       layer="below")
 
         fig1.update_layout(
-            height=450,  # reduced height
-            width=700,   # squeezed width
-            yaxis=dict(title="Strike", tickmode='linear', dtick=1, tickfont=dict(size=11)),
+            height=450,
+            width=700,
+            yaxis=dict(title="Strike", tickmode='linear', dtick=5, tickfont=dict(size=11)),
             xaxis_title="GEX Estimate",
             hovermode='y unified',
             margin=dict(l=10, r=10, t=20, b=10)
