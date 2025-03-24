@@ -7,7 +7,7 @@ from scipy.stats import norm
 import plotly.graph_objects as go
 
 # ------------------------
-# Gamma Calculation (Black-Scholes)
+# Black-Scholes Gamma
 # ------------------------
 def bs_gamma(S, K, T, r, sigma):
     try:
@@ -17,7 +17,7 @@ def bs_gamma(S, K, T, r, sigma):
         return 0
 
 # ------------------------
-# Get Next Friday Expiry
+# Get Next Friday
 # ------------------------
 def get_next_friday():
     today = datetime.today()
@@ -63,19 +63,29 @@ def calculate_gex(ticker_symbol):
     return filtered_gex, spot, expiry
 
 # ------------------------
-# Intraday Chart (Timeframe Selectable)
+# Intraday Candlestick Chart
 # ------------------------
 def get_intraday_chart(ticker, timeframe):
+    interval = "5m"
     if timeframe == "Today (5-min)":
-        df = yf.download(ticker, period="1d", interval="5m", progress=False)
+        period = "1d"
     elif timeframe == "5-Day (5-min from Monday)":
-        df = yf.download(ticker, period="5d", interval="5m", progress=False)
-    else:  # "Current Weekday Only (5-min)"
-        df = yf.download(ticker, period="5d", interval="5m", progress=False)
-        today = datetime.today().strftime('%Y-%m-%d')
-        df = df[df.index.strftime('%Y-%m-%d') == today]
+        period = "5d"
+    else:
+        period = "5d"  # current weekday
 
-    df = df.reset_index()
+    df = yf.download(ticker, period=period, interval=interval, progress=False)
+
+    if timeframe == "Current Weekday Only (5-min)":
+        today_str = datetime.today().strftime('%Y-%m-%d')
+        df = df[df.index.strftime('%Y-%m-%d') == today_str]
+
+    if df.empty or 'Close' not in df.columns:
+        fig = go.Figure()
+        fig.update_layout(title="No intraday data available", height=400)
+        return fig
+
+    df.reset_index(inplace=True)
     df['Datetime'] = pd.to_datetime(df['Datetime'])
 
     fig = go.Figure(data=[go.Candlestick(
@@ -84,33 +94,34 @@ def get_intraday_chart(ticker, timeframe):
         high=df['High'],
         low=df['Low'],
         close=df['Close'],
-        name='5-min Candle'
+        name='Candlesticks'
     )])
 
     fig.update_layout(
-        title=f"{ticker.upper()} {timeframe}",
-        xaxis_title='Time',
-        yaxis_title='Price',
+        title=f"{ticker.upper()} Intraday Chart ({timeframe})",
+        xaxis_title="Time",
+        yaxis_title="Price",
         xaxis_rangeslider_visible=False,
-        hovermode='x unified',
+        hovermode="x unified",
         height=500,
         margin=dict(l=10, r=10, t=30, b=10)
     )
 
-    # Auto-scroll to latest price
-    if not df.empty:
-        fig.update_xaxes(range=[df['Datetime'].min(), df['Datetime'].max()])
-
+    fig.update_xaxes(range=[df['Datetime'].min(), df['Datetime'].max()])
     return fig
 
 # ------------------------
-# Streamlit Layout
+# Streamlit App Layout
 # ------------------------
 st.set_page_config(page_title="GEX Estimator", layout="wide")
 st.title("📊 GEX Estimator (SpotGamma-style layout)")
 
 ticker_input = st.text_input("Enter stock ticker:", value="SPY")
-timeframe = st.selectbox("Select timeframe for price chart:", ["Today (5-min)", "5-Day (5-min from Monday)", "Current Weekday Only (5-min)"])
+timeframe = st.selectbox("Select timeframe for price chart:", [
+    "Today (5-min)",
+    "5-Day (5-min from Monday)",
+    "Current Weekday Only (5-min)"
+])
 
 if st.button("Run GEX Analysis") and ticker_input:
     try:
