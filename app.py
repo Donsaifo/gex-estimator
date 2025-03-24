@@ -67,22 +67,30 @@ def calculate_gex(ticker_symbol):
 # ------------------------
 def get_intraday_chart(ticker_symbol):
     df = yf.download(ticker_symbol, period="1d", interval="5m", progress=False)
-    fig = go.Figure()
-    fig.add_trace(go.Candlestick(
-        x=df.index,
+    
+    # Ensure timestamps are formatted
+    df = df.reset_index()
+    df['Datetime'] = pd.to_datetime(df['Datetime'])
+
+    fig = go.Figure(data=[go.Candlestick(
+        x=df['Datetime'],
         open=df['Open'],
         high=df['High'],
         low=df['Low'],
         close=df['Close'],
         name='5-min Candle'
-    ))
-    fig.update_layout(title=f'{ticker_symbol.upper()} 5-Min Intraday Chart',
-                      xaxis_title='Time',
-                      yaxis_title='Price',
-                      margin=dict(l=10, r=10, t=30, b=10),
-                      height=500)
-    return fig
+    )])
 
+    fig.update_layout(
+        title=f"{ticker_symbol.upper()} 5-Min Intraday Chart",
+        xaxis_title='Time',
+        yaxis_title='Price',
+        xaxis_rangeslider_visible=False,
+        height=500,
+        margin=dict(l=10, r=10, t=30, b=10)
+    )
+
+    return fig
 # ------------------------
 # Streamlit Layout
 # ------------------------
