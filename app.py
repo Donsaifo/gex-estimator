@@ -103,11 +103,13 @@ if st.button("Run GEX Analysis") and ticker_input:
         ))
 
         try:
-            flip_idx = gex_df[gex_df['gex'] >= 0].index[0]
-            flip_pos = gex_df.iloc[flip_idx]['strike_spaced']
-            flip_strike = gex_df.iloc[flip_idx]['strike']
-            fig1.add_hline(y=flip_pos, line_dash="dash", line_color="red",
-                           annotation_text=f"GEX Flip ≈ {flip_strike}", annotation_position="top left")
+            positive_gex = gex_df[gex_df['gex'] >= 0]
+            if not positive_gex.empty:
+                flip_idx = positive_gex.index[0]
+                flip_pos = gex_df.loc[flip_idx, 'strike_spaced']
+                flip_strike = gex_df.loc[flip_idx, 'strike']
+                fig1.add_hline(y=flip_pos, line_dash="dash", line_color="red",
+                               annotation_text=f"GEX Flip ≈ {flip_strike}", annotation_position="top left")
         except:
             pass
 
